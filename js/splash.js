@@ -9,23 +9,25 @@ window.onload = function() {
 		// Create a Paper.js Path to draw a line into it:
 		words = project.importSVG(document.getElementById('svg'));
 		// Do some initial scaling/positioning
-		updateScale();
+        words.scale(1, .8); // correct initial scaling from SVG import
+		updateScale( .5 );
 		
 		fox = words.children.fox;
 		bear = words.children.bear;
 		
 		// Whenever the window is resized, updateScale...
 		view.onResize = function(event) {
-			updateScale();
+			updateScale( .5 );
 		}
 
 }
 
-updateScale = function(){
+// Scale 'words' to the new window dimension, then reset the desired scale
+updateScale = function( scale ){
 	canvas.height = canvas.height - (canvas.height*.1);
 	words.fitBounds(view.bounds, false);
 	words.position = view.bounds.center;
-	words.scale(.5);
+	words.scale( scale );
 }
 
 /*
