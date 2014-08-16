@@ -1,4 +1,4 @@
-var canvas, words, fox, bear, fox_bear, source_letter_paths , target_letter_paths ;
+var canvas, words, fox, bear, fox_bear, fox_letter_paths , bear_letter_paths ;
 paper.install(window);
 
 // Import SVG tag to the canvas, re-scale and assign event handlers
@@ -17,39 +17,36 @@ window.onload = function() {
 		fox = words.children.fox;
 		bear = words.children.bear;
         
+        
         fox_bear = words.addChild( new Group({
             children: [new Path () , new Path () , new Path () , new Path ()],
             // Set the stroke color of all items in the group:
-            strokeColor: "#8BE0FC",
-            strokeWidth: 2 ,
+            strokeColor: "#555555",
+            strokeWidth: 1 ,
             // fillColor: new Color(1, 0, 0, .5)
         }));
         fox_bear.children.forEach(function(path){ path.closed = true});
         
         // Arrays of paths - per letter
-        source_letter_paths = [];
-        target_letter_paths = [];
+        fox_letter_paths = [];
+        bear_letter_paths = [];
         // Setup work for morphing paths
         for ( var i = 0; i < 4 ;  i++) {
             // console.log(i);
 
-            source_letter = fox.children[i];
-            target_letter = bear.children[i];
+            fox_letter = fox.children[i];
+            bear_letter = bear.children[i];
             
             // Traverse paths and groups of paths to get flat arrays of paths
-            source_letter_paths[i] = [];
-            child_apply( source_letter.children[0] , function(child){source_letter_paths[i].push(child);});
+            fox_letter_paths[i] = [];
+            child_apply( fox_letter.children[0] , function(child){fox_letter_paths[i].push(child);});
                 
-            target_letter_paths[i] = [];
-            child_apply( target_letter.children[0] , function(child){target_letter_paths[i].push(child);});
-            
-            // Subdivide paths
-            for (var j = 0; j < source_letter_paths[i].length ; j++) {
-                source_path = source_letter_paths[i][j]
-                subdivide_path( source_path , 4);
-             }
+            bear_letter_paths[i] = [];
+            child_apply( bear_letter.children[0] , function(child){bear_letter_paths[i].push(child);});
         }
         
+        subdivide_word( fox_letter_paths );
+        // subdivide_word( bear_letter_paths );
         // Hide the words
         // fox.visible = false;
         // bear.visible = false;
@@ -106,7 +103,7 @@ updateFrame = function( event , fox, bear ){
         source_letter = fox.children[i];
         target_letter = bear.children[i];
         
-        new_segments = morphStep( source_letter_paths[i], target_letter_paths[i] , t);
+        new_segments = morphStep( fox_letter_paths[i], bear_letter_paths[i] , t);
         
         fox_bear.children[i].removeSegments();
         fox_bear.children[i].addSegments( new_segments );
@@ -123,26 +120,26 @@ updateFrame = function( event , fox, bear ){
 
 // Finds the next incremental change of the source_path's vertices
 // by drawing a line to the closest point on the target path and obtaining point t on this line
-morphStep = function( source_letter_paths , target_letter_paths , t ){
+morphStep = function( fox_letter_paths , bear_letter_paths , t ){
     
     new_segments = []
      
-    for (var i = 0; i < source_letter_paths.length ; i++) {
-        source_path = source_letter_paths[i]
+    for (var i = 0; i < fox_letter_paths.length ; i++) {
+        source_path = fox_letter_paths[i]
         
          for (var j = 0; j < source_path.segments.length ; j++) {
             source_segment = source_path.segments[j]
             
 
-            target_segment = undefined ;// target_letter_paths[i].segments[j]
+            target_segment = undefined ;// bear_letter_paths[i].segments[j]
             if (target_segment === undefined){
-                // target_pt = target_letter_paths[i].getNearestPoint( source_segment.point );
-                // target_segment = target_letter_paths[i].getLocationOf( target_pt ).segment;
+                // target_pt = bear_letter_paths[i].getNearestPoint( source_segment.point );
+                // target_segment = bear_letter_paths[i].getLocationOf( target_pt ).segment;
                 
-                // target_segment = target_letter_paths[i].segments[0]
+                // target_segment = bear_letter_paths[i].segments[0]
                 
-                rand_idx = Math.floor( (Math.random() * ( target_letter_paths[i].segments.length-1)) + 1);
-                target_segment = target_letter_paths[i].segments[rand_idx]
+                rand_idx = Math.floor( (Math.random() * ( bear_letter_paths[i].segments.length-1)) + 1);
+                target_segment = bear_letter_paths[i].segments[rand_idx]
             }
             
             candidate_segment = lerp_segment( source_segment , target_segment , t )
@@ -155,6 +152,16 @@ morphStep = function( source_letter_paths , target_letter_paths , t ){
     return new_segments
 }
 
+subdivide_word = function( fox_letter_paths ){
+    for ( var i = 0; i < 4 ;  i++) {
+        // Subdivide paths
+        for (var j = 0; j < fox_letter_paths[i].length ; j++) {
+            source_path = fox_letter_paths[i][j]
+            subdivide_path( source_path , 4);
+         }
+    }
+}
+        
 // UNFINISHED/untested -
 // If this element has children, apply the lambda to the children. 
 child_apply = function( group , lambda ){
