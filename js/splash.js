@@ -1,4 +1,4 @@
-var canvas, words, fox, bear, fox_bear;
+var canvas, words, fox, bear, fox_bear, source_letter_paths , target_letter_paths ;
 paper.install(window);
 
 // Import SVG tag to the canvas, re-scale and assign event handlers
@@ -16,13 +16,47 @@ window.onload = function() {
         
 		fox = words.children.fox;
 		bear = words.children.bear;
+        
         fox_bear = words.addChild( new Group({
             children: [new Path () , new Path () , new Path () , new Path ()],
             // Set the stroke color of all items in the group:
-            strokeColor: 'steelblue',
-            strokeWidth: 1
+            strokeColor: "#8BE0FC",
+            strokeWidth: 2 ,
+            // fillColor: new Color(1, 0, 0, .5)
         }));
+        fox_bear.children.forEach(function(path){ path.closed = true});
         
+        // Arrays of paths - per letter
+        source_letter_paths = [];
+        target_letter_paths = [];
+        // Setup work for morphing paths
+        for ( var i = 0; i < 4 ;  i++) {
+            // console.log(i);
+
+            source_letter = fox.children[i];
+            target_letter = bear.children[i];
+            
+            // Traverse paths and groups of paths to get flat arrays of paths
+            source_letter_paths[i] = [];
+            child_apply( source_letter.children[0] , function(child){source_letter_paths[i].push(child);});
+                
+            target_letter_paths[i] = [];
+            child_apply( target_letter.children[0] , function(child){target_letter_paths[i].push(child);});
+            
+            // Subdivide paths
+            for (var j = 0; j < source_letter_paths[i].length ; j++) {
+                source_path = source_letter_paths[i][j]
+                subdivide_path( source_path , 4);
+             }
+        }
+        
+        // Hide the words
+        // fox.visible = false;
+        // bear.visible = false;
+        fox.strokeColor = "#FFFFFF";
+        bear.strokeColor = "#000000";
+        // bear.fillColor = 'white'
+        // fox.fillColor = 'white'
         
 		// Whenever the window is resized, updateScale...
 		view.onResize = function(event) {
@@ -38,7 +72,7 @@ window.onload = function() {
 // For now, oscillate opacity. Eventually , morph words...
 updateFrame = function( event , fox, bear ){
 
-    var period = 120
+    var period = 880
     var frame_count = event.count
     // Create a periodic function that counts down to zero from some value,
     // then back up to the value,
@@ -49,12 +83,12 @@ updateFrame = function( event , fox, bear ){
     var bear_opac = map_range( i , 0 , ( period/2 ) , 1 , 0)
     
     fox.children.forEach( function(letter_group){
-        if ( letter_group.name != "blank" ){
+
             letter_path = letter_group.children[0]
-            // letter_path.strokeColor.alpha = fox_opac;
-            letter_path.fillColor.alpha = fox_opac;
             
-        }
+            // letter_path.strokeColor.alpha = fox_opac;
+            letter_path.strokeColor.alpha = fox_opac;
+            
     });
     
     bear.children.forEach( function(letter_group){
@@ -64,7 +98,7 @@ updateFrame = function( event , fox, bear ){
     }); 
     
     var t = map_range( i , 0 , ( period/2 ) , 1 , 0);
-
+    var alpha = map_range( i , 0 , ( period/2 ) , 0 , 1);
     // Iterate over each letter  and morph between the two
     for ( var i = 0; i < 4 ;  i++) {
         // console.log(i);
@@ -72,46 +106,57 @@ updateFrame = function( event , fox, bear ){
         source_letter = fox.children[i];
         target_letter = bear.children[i];
         
-        new_segments = morphStep( source_letter, target_letter , t);
+        new_segments = morphStep( source_letter_paths[i], target_letter_paths[i] , t);
         
         fox_bear.children[i].removeSegments();
         fox_bear.children[i].addSegments( new_segments );
+        
+        fox_bear.children[i].strokeColor.alpha = alpha;
+        
+        if (i == 3){
+            fox_bear.children[i].strokeColor.alpha = 0;
+            fox.children[i].strokeColor.alpha = 0;
+        }
     }
+    
 }
 
 // Finds the next incremental change of the source_path's vertices
 // by drawing a line to the closest point on the target path and obtaining point t on this line
-morphStep = function( source_letter , target_letter , t ){
-    
-    // console.log(source_letter.name , target_letter.name);
-    
-    
-    source_letter_paths = [];
-    child_apply( source_letter.children[0] , function(child){source_letter_paths.push(child);});
-        
-    target_letter_paths = [];
-    child_apply( target_letter.children[0] , function(child){target_letter_paths.push(child);});
+morphStep = function( source_letter_paths , target_letter_paths , t ){
     
     new_segments = []
-    // console.log(source_letter_paths , target_letter_paths);
-    source_letter_paths.forEach( function(source_path ){
+     
+    for (var i = 0; i < source_letter_paths.length ; i++) {
+        source_path = source_letter_paths[i]
         
-        source_path.segments.forEach( function( source_segment ){
+         for (var j = 0; j < source_path.segments.length ; j++) {
+            source_segment = source_path.segments[j]
             
-            candidate_segment = lerp_segment( source_segment , target_letter_paths[0] , t )
+
+            target_segment = undefined ;// target_letter_paths[i].segments[j]
+            if (target_segment === undefined){
+                // target_pt = target_letter_paths[i].getNearestPoint( source_segment.point );
+                // target_segment = target_letter_paths[i].getLocationOf( target_pt ).segment;
+                
+                // target_segment = target_letter_paths[i].segments[0]
+                
+                rand_idx = Math.floor( (Math.random() * ( target_letter_paths[i].segments.length-1)) + 1);
+                target_segment = target_letter_paths[i].segments[rand_idx]
+            }
+            
+            candidate_segment = lerp_segment( source_segment , target_segment , t )
             // console.log( candidate_segment )
             new_segments.push( candidate_segment );
-        });
+        };
         
-    });
+    }
     
     return new_segments
 }
 
 // UNFINISHED/untested -
 // If this element has children, apply the lambda to the children. 
-// Else, apply the lambda directly
-// This is needed because some paths 
 child_apply = function( group , lambda ){
     output = [];
     if ( group.children === undefined ){
@@ -125,17 +170,41 @@ child_apply = function( group , lambda ){
     return output
 }
 
-// UNFINISHED/untested - Linear interpolate a curve relative to a target path
-lerp_segment = function( source_segment , target_path , t ){
-    // console.log(source_segment , target_path , t);
-    target_pt1 = target_path.getNearestPoint( source_segment.point );
-    // console.log(target_pt1);
+subdivide_path = function( source_path, subdivisions){
+
+    subdivide = function(source_path){
+        for (var k = 0; k < source_path.segments.length ; k+=2) {
+            start_idx = k
+            if (k == source_path.segments.length-1){ end = 0;}
+            else{ end_idx = k+1}
+            subdiv_segment(source_path , start_idx , end_idx , 2 );
+        }
+    }
     
-    next_pt = lerp_pt ( source_segment.point , target_pt1 , t);
-    // next_handle1 = lerp_pt ( curve.handle1 , foo , t);
-    // next_handle2 = lerp_pt ( curve.handle2 ,  foo , t);
+    for( var s = 0; s< subdivisions-1; s++){
+        subdivide(source_path);
+    }
     
-    var new_segment = new Segment(next_pt, source_segment.handleIn , source_segment.handleOut);
+}
+
+// Subdivide a segment n times
+subdiv_segment = function( path , start_idx , end_idx ){
+    
+    pt0 = path.segments[start_idx].point
+    pt1 = path.segments[end_idx].point
+    mid_pt = lerp_pt( pt0 , pt1, .5)
+    
+    path.removeSegment( start_idx )
+    path.insertSegments( start_idx, [ new Segment(pt0) , new Segment (mid_pt) ] )
+    // console.log(pt0, pt1, mid_pt);
+}
+
+// Linear interpolate a curve relative to a target path
+lerp_segment = function( source_segment , target_segment , t ){
+
+    next_pt = lerp_pt ( source_segment.point , target_segment.point , t);
+    
+    var new_segment = new Segment(next_pt); // source_segment.handleIn , source_segment.handleOut
     return new_segment
 }
 
